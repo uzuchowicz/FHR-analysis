@@ -605,7 +605,7 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     N = len(fHR)
     is_acc = np.zeros(N) 
     
-    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia = get_Basal_fHR(fHR,t_fHR)
+    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia = get_Basal_fHR(fHR, t_fHR)
    
     
     fHR_diff = np.diff(fHR)
@@ -613,31 +613,32 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     n_max_samp = int(max_duration/Ts)
     n_min_samp = int(min_duration/Ts)
     end_acc = 0
-    criteria = np.zeros(3) 
+    criteria = np.zeros(3)
     
     for i in range(int(N - n_max_samp)):
-        if i>end_acc and fHR[i]>basal_fHR and fHR_diff[i]>0 and fHR_diff[i+1]>0 and fHR_diff[i+2]>0 and fHR_diff[i+3]>0:
+        if i > end_acc and fHR[i]>basal_fHR and fHR_diff[i]>0 and fHR_diff[i+1]>0 and fHR_diff[i+2]>0 and fHR_diff[i+3]>0:
             
-            for j in range(n_max_samp):
-                if fHR[i+j] < basal_fHR:
-                    
-                    fHR_wnd = fHR[i: i+j]
-                   
+            for j in range(N - n_max_samp - i):
+                if fHR[i+j] <= basal_fHR:
+                  
+                    fHR_wnd = fHR[i: i+j]               
                     amp = np.nanargmax(fHR_wnd)
                     
-                    if j > n_min_samp:
+                    if j > n_min_samp and j < n_max_samp:
                         criteria[0]=1
 
-                    if fHR_wnd[amp] > min_amp:
-                        criteria[1]=1   
+                    if fHR_wnd[amp] > (min_amp + basal_fHR):
+                        criteria[1]=1
+                        print fHR_wnd[amp]   
  
                     if amp < np.round_(max_t_incr/Ts):
                         criteria[2]=1
 
                     if criteria.all() :
-                      
+                        print fHR_wnd
                         is_acc[i:i+j] = 1
                         n_acc += 1
+                        criteria = np.zeros(3)
                     end_acc=i+j
                       
                     break
@@ -697,9 +698,11 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
                             acc_lenght.append(Ts*j)
                             
                             acc = fHR_acc[i : i+j+1] 
+                            print acc
                             area = np.trapz(acc, dx=Ts) - basal_fHR*Ts*(j) 
                             acc_area.append(area) 
                             amp = np.nanmax(acc) - basal_fHR 
+                            print np.nanmax(acc)
                             acc_amp.append(amp)  
                             n_acc += 1                           
                             end_acc = i+j
@@ -797,30 +800,100 @@ def fHR_windows(fHR, t_fHR, wnd, time = True):
     
 ######################################################
 file_name = "1511050945.npz"
-file_name2="1502021138.npz"
-file_name3="1606291005.npz"
+file_name2 = "1502021138.npz"
+file_name3 = "1606291005.npz"
 
 t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name2)
 
 fHR_ref = [val[0] for val in fHR_ref]
 t_ref = [val[0] for val in t_ref]
-t_ref=np.asarray(t_ref)
+t_ref = np.asarray(t_ref)
 fHR_ref = np.asarray(fHR_ref)
 
 
-x=fHR_windows(fHR, t_fHR, 60, True)
+x = fHR_windows(fHR, t_fHR, 60, True)
 
 
 ########################################################
 
+Basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 40, max_amp = 10, max_val = 47.5, min_val = 222.5 )
+print "Czestosc podstawowa fHR"
+print Basal_fHR
+print "Procent stabilnego fHR" 
+print prc_stable_fHR
 
+STV_wnd, STV = get_STV_Arduini(fHR, t_fHR, t_wnd = 60)
+print "STV w oknach czasowych wg. Arduini"
+print STV_wnd
+print "STV w całosci zapisu"
+print STV
 
+STV_wnd, STV = get_STV_Haan(fHR, t_fHR, n_intervals=128)
+print "STV w oknach czasowych wg. de Haan'a"
+print STV_wnd
+print "STV w całosci zapisu"
+print STV
+STV_wnd, STV = get_STV_Yeh(fHR, t_fHR, t_wnd=60)
+print "STV w oknach czasowych wg. Yeh'a"
+print STV_wnd
+print "STV w całosci zapisu"
+print STV
+STV_wnd, STV = get_STV_Huey(fHR, t_fHR, t_wnd=30)
+print "STV w oknach czasowych wg. Huey'a"
+print STV_wnd
+print "STV w całosci zapisu"
+print STV
+STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd=60)
+print "STV w oknach czasowych wg. Dalton'a"
+print STV_wnd
+print "STV w całosci zapisu"
+print STV
+STV_wnd, STV = get_STV_van_Geijn(fHR, t_fHR, t_wnd=30)
+print "STV w oknach czasowych wg. van Geijn'a"
+print STV_wnd
+print "STV w całosci zapisu"
+print STV
+print "ZMIENNOSCI DLUGOTERMINOWE LTV"
 
+LTV = get_Oscillation_Index(fHR, t_fHR, t_wnd=60)
+print "Oscillation Index"
+print LTV
+LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals=128)
+print "LTV w oknach czasowych wg. Haana"
+print LTV_wnd
+print "LTV w całosci zapisu"
+print LTV
+LTV_wnd, LTV = get_LTV_Yeh(fHR, t_fHR, t_wnd=600)
+print "LTV w oknach czasowych wg. Yeh'a"
+print LTV_wnd
+print "LTV w całosci zapisu"
+print LTV
+get_LTV_Huey(fHR, t_fHR, t_wnd=60)
+print "LTV w oknach czasowych wg. Hueya"
+print LTV_wnd
+print "LTV w całosci zapisu"
+print LTV
 
-########################################################
-plt.plot(t_fHR, x, 'ro')
-plt.plot(t_fHR, fHR_bl)
-plt.plot(t_fHR, fHR)
+print "Entropia"
+#ApEn = get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60)
+#print ApEn
+print "Akceleracje"
+fHR_acc = fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t_incr=30)
+plt.plot(t_fHR, fHR_acc)
+print "x"
+acc_lenght, acc_area, acc_amp, n_acc = get_acc_param(fHR, fHR_acc, t_fHR)
+print "Parametry: długosc kolejnych akceleracji"
+print acc_lenght
+print "Powierzchnia kolejnych akceleracji"
+print acc_area
+print "Maksymalna amplituda kolejnych akceleracji"
+print acc_amp
+print "Ilosc akceleracji"
+print n_acc
+#######################################################
+#plt.plot(t_fHR, x, 'ro')
+plt.plot( t_fHR, fHR, 'b', t_fHR, fHR_acc,'r')
+
 plt.savefig("fHR.png", dpi=1000)
 
 
