@@ -707,7 +707,7 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
                             break
     return acc_lenght, acc_area, acc_amp, n_acc
     
- #################POWER SPECTRAL DENSITY############################
+ #################POWER SPECTRUM############################
 """
 def get_pow_spectr(fHR,t_fHR, LF=0.03-0.15, MF=0.15-0.5,HF=0.5-2):
     
