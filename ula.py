@@ -71,7 +71,7 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     """
     fHR = copy.deepcopy(fHR)
     
-    Ts = np.mean(np.diff(t_fHR)) #czy jest jakas funkcja obliczajaca modalną? Szukalam:( a obliczanie sredniej zeby dostac okres probkowania wydaje mi się nie za bardzo elegancki)
+    Ts = np.mean(np.diff(t_fHR)) 
     fHR_stable = fHR
     n_samp = int(t_wnd / Ts)
     N=len(fHR)
@@ -88,7 +88,7 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
 
     bins = np.arange(max_val, min_val, app_val) 
     hist_fHR = np.histogram(fHR_stable_sgmts, bins)
-    basal_fHR = bins[np.nanargmax(hist_fHR[0])] + (app_val*0.5) #czy w jakis inny sposob da sie rozrysowac ten histogram? ewentualnie kazda wartosc w fHR zaookraglic do 5 (tzn. 145,150,155..) i znalezc modalną?
+    basal_fHR = bins[np.nanargmax(hist_fHR[0])] + (app_val*0.5) 
     basal_fHR = int(basal_fHR)
     #plt.hist(fHR_stable_sgmts, bins)
     #plt.show()
@@ -133,8 +133,6 @@ def get_STV_Arduini(fHR, t_fHR, t_wnd = 60):
         RR_wnd=RR_intervals[i*n_samp : (i+1)*n_samp]
         STV_wnd[i] = np.mean(np.abs(np.diff(RR_wnd)))
     
-    #Whole record
-    
     STV = np.nanmean(np.abs(np.diff(RR_intervals)))
     
     return STV_wnd, STV
@@ -177,7 +175,6 @@ def get_STV_Haan(fHR, t_fHR, n_intervals=128):
             
         STV_wnd[i] = np.subtract(*np.nanpercentile(RR_phi_wnd, [75, 25]))
         
-     #For whole record  
     RR_phi = np.zeros(len(RR_intervals)-1) 
     RR_points = np.zeros((len(RR_intervals)-1,2))
     for i in range(len(RR_intervals) - 1):
@@ -224,7 +221,6 @@ def get_STV_Yeh(fHR, t_fHR, t_wnd=60):
             D_ind[j] = (RR_2 - RR_1)/(RR_1 + RR_2)*1000
         STV_wnd[i] = np.nanstd(D_ind)
         
-    #for whole record
     D_ind = np.zeros(N-1)
     for i in range(N-1):
         RR_1 = RR_intervals[i]
@@ -261,8 +257,7 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
     STV_wnd = np.zeros(int(N/n_samp)) 
     
     RR_diff = np.diff(RR_intervals)
-    
-    
+       
     for i in range(len(STV_wnd)):
         for j in range(n_samp-2):
             RR_diff_1 = RR_diff[n_samp*i + j]
@@ -270,8 +265,6 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
             if RR_diff_1*RR_diff_2 < 0:
                 STV_wnd[i] = STV_wnd[i] + np.abs(RR_diff_2)
         
-       
-    #for whole record
     STV = 0
     for i in range(N-2):
         RR_diff_1 = RR_diff[i]
@@ -306,22 +299,16 @@ def get_STV_Dalton(fHR, t_fHR, t_wnd=60):
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     N=len(fHR)
-    STV_wnd = np.zeros(int(N/n_samp)) 
-    
+    STV_wnd = np.zeros(int(N/n_samp))   
     RR_abs_diff = np.abs(np.diff(RR_intervals))
-    
-    
+      
     for i in range(len(STV_wnd)):
             RR_abs_diff_wnd = RR_abs_diff[i*n_samp : (i+1)*n_samp]
             STV_wnd[i] = 0.5 * np.abs(np.nanmean(RR_abs_diff_wnd))
         
-       
-    #for whole record
     STV =  0.5 * np.abs(np.nanmean(RR_abs_diff))
-
-        
-    return STV_wnd, STV    
-    
+     
+    return STV_wnd, STV       
     
 def get_STV_van_Geijn(fHR, t_fHR, t_wnd=30):
     """
@@ -358,18 +345,15 @@ def get_STV_van_Geijn(fHR, t_fHR, t_wnd=30):
             RR_param[j] = g * (np.abs(np.diff(RRs)))
         STV_wnd[i] = np.subtract(*np.nanpercentile(RR_param,[75, 25]))
         
-        
-       
-    #for whole record
     RR_param = np.zeros(N)
     for i in range(N - 1):    
             RRs = RR_intervals[i : i+2]            
             RR_mean = np.mean(RRs)
             g = np.power(180/(RR_mean - 320), 1.5)
             RR_param[i] = g * (np.abs(np.diff(RRs)))
+            
     STV = np.subtract(*np.nanpercentile(RR_param,[75, 25]))
-
-        
+    
     return STV_wnd, STV          
 ######################LONG-TERM VARIABILITY##############################    
 
@@ -439,10 +423,8 @@ def get_LTV_Haan(fHR, t_fHR, n_intervals=128):
             RR_modulus[j] = np.sqrt(np.power(RR_points[j,1], 2) + np.power(RR_points[j,0], 2))
             
         LTV_wnd[i] = np.subtract(*np.nanpercentile(RR_modulus, [75, 25]))
-        
-        
-    #Whole record    
-    RR_modulus = np.zeros(len(RR_intervals)-1) #lepiej nowa zmienna czy moze się tak samo nazywac?
+   
+    RR_modulus = np.zeros(len(RR_intervals)-1) 
     RR_points = np.zeros((len(RR_intervals)-1, 2))
     
     for i in range(len(RR_intervals) - 1):
@@ -483,7 +465,7 @@ def get_LTV_Yeh(fHR, t_fHR, t_wnd=60):
         RR_wnd=RR_intervals[n_samp*i : (i+1)*n_samp]
         LTV_wnd[i] = np.nanstd(RR_wnd) / np.nanmean(RR_wnd)
     
-    LTV=np.nanstd(RR_intervals) / np.nanmean(RR_intervals) #przejmowac się warningiem "mean of empty slice"? 
+    LTV = np.nanstd(RR_intervals) / np.nanmean(RR_intervals) 
     
     return LTV_wnd, LTV 
     
@@ -511,13 +493,9 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     N=len(fHR)
-    LTV_wnd = np.zeros(int(N/n_samp)) 
-    
+    LTV_wnd = np.zeros(int(N/n_samp))   
     RR_diff = np.diff(RR_intervals)
-    print len(LTV_wnd)
-    print len(RR_diff)
-    
-    
+       
     for i in range(len(LTV_wnd)):
         for j in range(n_samp-3):
             RR_diff_1 = RR_diff[n_samp*i + j]
@@ -526,8 +504,6 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
             if RR_diff_1*RR_diff_2*RR_diff_3 > 0:
                 LTV_wnd[i] = LTV_wnd[i] + np.abs(RR_diff_2)
         
-       
-    #for whole record
     LTV = 0
     for i in range(N-3):
         RR_diff_1 = RR_diff[i]
@@ -542,7 +518,7 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
           
 ####################ENTROPY##################################
   
-def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60): #chciałabym ten  kod wykonac na jakims oknie czasowym, a nie na całosci RR_intervals. Da się to elegancko zrobic?
+def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60): 
     """
     Estimate Approximate Entropy in fHR record.
     ----------
@@ -564,36 +540,35 @@ def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60): #chciałabym t
      LTV:
         Long-term variability index in fHR record.
     """
-    Ts = np.mean(np.diff(t_fHR))
-    RR_intervals = 60000/fHR  #all NaN slice encountered dla dwoch danych - co robic?
+    RR_intervals = 60000/fHR  
     r = r_mlp*np.nanstd(RR_intervals)
     N = len(RR_intervals)  
     Phi_m_r = np.zeros(2)
     for n in range(2):
         m = m+n
         Pm = np.zeros((N-m+1, m))
-        #Pm vectors
+       
         for j in range(N - m+1):
             for i in range(m):
                 Pm[j, i] = RR_intervals[j+i]
-        #Distances vector
+        
         pm_distances = np.zeros((N-m+1,N-m+1))
         for i in range(N-m+1):
-            for j in range(N-m+1): #czy jest jakis sposob zeby nie zliczac elementow samopodobnych(tych samych, dla ktorych j=i)? I potem liczyc srednią itd. dla jednego mniej elementu?
+            for j in range(N-m+1):  
                 dist = np.zeros(m)
                 for k in range(m): 
                     dist[k] = np.abs(Pm[j,k]-Pm[i,k])
                     pm_distances[i,j] = np.nanmax(dist) 
                     pm_distances[j,i] = np.nanmax(dist)
                     
-        #Comparision with tolerance
+        
         pm_similarity = pm_distances>r 
-        #Function Cmr
+        
         C_m_r = np.zeros(N-m+1)
         for i in range(N-m+1):
             n_i = np.nansum(pm_similarity[i])
             C_m_r[i] = float(n_i) / float(N)
-        #Phi parameter- Cmr logarithms mean
+        
         Phi_m_r[n] = np.nanmean(np.log(C_m_r))
     ApEn = np.abs(Phi_m_r[0] - Phi_m_r[1])
     
@@ -638,11 +613,11 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     n_max_samp = int(max_duration/Ts)
     n_min_samp = int(min_duration/Ts)
     end_acc = 0
-    criteria = np.zeros(3) #czy taki sposob z tablicą kryteriow jest ok, czy lepiej ifami?
+    criteria = np.zeros(3) 
     
     for i in range(int(N - n_max_samp)):
         if i>end_acc and fHR[i]>basal_fHR and fHR_diff[i]>0 and fHR_diff[i+1]>0 and fHR_diff[i+2]>0 and fHR_diff[i+3]>0:
-            #chyba srednio robic takiego dlugiego ifa, nie? da się to zlozyc?
+            
             for j in range(n_max_samp):
                 if fHR[i+j] < basal_fHR:
                     
@@ -711,12 +686,10 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
     
     Ts=np.mean(np.diff(t_fHR))
     N=len(fHR_acc)
-    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR)
-    
-    
+    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR)  
     
     end_acc = 0
-    for i in range(N): #czy ta funkcja rzeczywiscie wyszukuje czesci z wartosciami (wszystkie oprocz NaNow?) Da się to jakos lepiej zrobic?
+    for i in range(N): 
         if i > end_acc and ~np.isnan(fHR_acc[i]):
             for j in range(N-i):
                 if np.isnan(fHR_acc[i+j+1]):
@@ -735,22 +708,11 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
     return acc_lenght, acc_area, acc_amp, n_acc
     
  #################POWER SPECTRAL DENSITY############################
+"""
 def get_pow_spectr(fHR,t_fHR, LF=0.03-0.15, MF=0.15-0.5,HF=0.5-2):
     
-    fs = 1/np.mean(np.diff(t_fHR)) #chciałabym po prostu zrobic fft wraz z odpowiednią częstotliwoscią? 
-    fHR.tolist()
-    fHR_FFT = scipy.fft(fHR)
-    plt.plot(fHR_FFT)
-    print fHR_FFT
-    N = len(fHR)
-    freq = np.fft.fftfreq(N, 1/fs)
-    
-    fHR_FFT = fHR_FFT[0:N/2]
-    fr = np.linspace(0,fs/2, N/2)
-    
-    plt.plot(fr,abs(fHR_FFT)**2)
-    plt.show()
-    return fr                
+   return 
+"""             
 ##################SINUSOIDAL RHYTHM#################################
 
 def sin_rhythm(LTV_function, STV_function, fHR, t_fHR, wnd, min_ratio, SD=False):
@@ -810,8 +772,7 @@ def sin_rhythm(LTV_function, STV_function, fHR, t_fHR, wnd, min_ratio, SD=False)
             fHR_sin[i]=np.nan
        
     return fHR_sin
-    
-    
+        
 #######################################################
 def fHR_windows(fHR, t_fHR, wnd, time = True):
     Ts = np.mean(np.diff(t_fHR))
@@ -849,21 +810,20 @@ fHR_ref = np.asarray(fHR_ref)
 
 x=fHR_windows(fHR, t_fHR, 60, True)
 
-plt.plot(t_fHR, fHR)
-########################################################
-x=fHR_acc_det(fHR, t_fHR)
-x,y,z=get_acc_param(fHR, x, t_fHR)
-print get_STV_van_Geijn(fHR, t_fHR)
 
- #Tworzenie tabelek zdanymi albo jakies inne graficzne sposoby przedstawienia danych?
 ########################################################
+
+
+
+
+
+########################################################
+plt.plot(t_fHR, x, 'ro')
 plt.plot(t_fHR, fHR_bl)
 plt.plot(t_fHR, fHR)
-plt.savefig("XXX.png", dpi=1000)
+plt.savefig("fHR.png", dpi=1000)
 
-#Funkcja rysująca pionową kreske na wykresie tak aby okreslic początki i konce okien czasowych ?
-#czy cos jeszcze jest nie tak jestli chodzi o zapis? odleglosci między znakami itp.
-#w jaki sposob w Anacondzie dostac obrazki o duzej rozdzielczosci?
+
 
 
 
