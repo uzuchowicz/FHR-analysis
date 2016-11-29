@@ -629,22 +629,18 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
 
                     if fHR_wnd[amp] > (min_amp + basal_fHR):
                         criteria[1]=1
-                        print fHR_wnd[amp]   
- 
+                           
                     if amp < np.round_(max_t_incr/Ts):
                         criteria[2]=1
 
                     if criteria.all() :
-                        print fHR_wnd
+                        
                         is_acc[i:i+j] = 1
                         n_acc += 1
                         criteria = np.zeros(3)
-                    end_acc=i+j
-                      
+                    end_acc=i+j                  
                     break
-       
-         
-            
+                       
     fHR_acc = np.where(is_acc == 0, np.nan, fHR_acc)
             
     return fHR_acc
@@ -695,14 +691,11 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
             for j in range(N-i):
                 if np.isnan(fHR_acc[i+j+1]):
                             
-                            acc_lenght.append(Ts*j)
-                            
+                            acc_lenght.append(Ts*j)                           
                             acc = fHR_acc[i : i+j+1] 
-                            print acc
                             area = np.trapz(acc, dx=Ts) - basal_fHR*Ts*(j) 
                             acc_area.append(area) 
                             amp = np.nanmax(acc) - basal_fHR 
-                            print np.nanmax(acc)
                             acc_amp.append(amp)  
                             n_acc += 1                           
                             end_acc = i+j
