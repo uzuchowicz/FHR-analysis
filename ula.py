@@ -160,13 +160,12 @@ def get_STV_Haan(fHR, t_fHR, n_intervals=128):
      """   
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
-    
     n_samp = int(n_intervals * np.nanmean(RR_intervals) / (Ts*1000))
     n_wnd=int(np.round_(len(fHR)/n_samp))
     STV_wnd = np.zeros(n_wnd)
     RR_points = np.zeros((n_samp-1,2))
     
-    RR_phi_wnd = np.zeros(n_samp-1) #gdzie umiescić tę zmienną? Czy mogę nie deklarowac zmiennych RR_points? Tylko w samej pętli?
+    RR_phi_wnd = np.zeros(n_samp-1) 
     for i in range(n_wnd):
         for j in range(n_samp-1):
             RR_points[j,0] = RR_intervals[i*n_samp+j]
@@ -491,10 +490,12 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
         Short-term variabilite indexes fHR record.
      """   
     Ts = np.mean(np.diff(t_fHR))
+    print Ts
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     N=len(fHR)
     LTV_wnd = np.zeros(int(N/n_samp))   
+    print len(LTV_wnd)
     RR_diff = np.diff(RR_intervals)
        
     for i in range(len(LTV_wnd)):
@@ -558,8 +559,7 @@ def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60):
                 for k in range(m): 
                     dist[k] = np.abs(Pm[j,k]-Pm[i,k])
                     pm_distances[i,j] = np.nanmax(dist) 
-                    pm_distances[j,i] = np.nanmax(dist)
-                    
+                    pm_distances[j,i] = np.nanmax(dist)                 
         
         pm_similarity = pm_distances>r 
         
@@ -774,7 +774,7 @@ def fHR_windows(fHR, t_fHR, wnd, time = True):
         n_samp = int(wnd/Ts)
         n_wnd = int(len(fHR)/n_samp)
         for i in range(n_wnd):
-            bnd_wnd_fHR[n_samp*i] = basal_fHR
+            bnd_wnd_fHR[n_samp*i] = bnd_wnd_fHR[n_samp*i]
         bnd_wnd_fHR = np.where(bnd_wnd_fHR == 0, np.nan, bnd_wnd_fHR)
         
     if not time:
@@ -793,7 +793,7 @@ file_name = "1511050945.npz"
 file_name2 = "1502021138.npz"
 file_name3 = "1606291005.npz"
 
-t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name3)
+t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name2)
 
 fHR_ref = [val[0] for val in fHR_ref]
 t_ref = [val[0] for val in t_ref]
@@ -801,24 +801,23 @@ t_ref = np.asarray(t_ref)
 fHR_ref = np.asarray(fHR_ref)
 
 
-x = fHR_windows(fHR, t_fHR, 60, True)
+#x = fHR_windows(fHR, t_fHR, 60, True)
 
 
 ########################################################
-
 Basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 30, max_amp = 10, max_val = 47.5, min_val = 222.5 )
 print "Czestosc podstawowa fHR"
 print Basal_fHR
 print "Procent stabilnego fHR" 
 print prc_stable_fHR
 
-STV_wnd, STV = get_STV_Arduini(fHR, t_fHR, t_wnd = 600)
+STV_wnd, STV = get_STV_Arduini(fHR, t_fHR, t_wnd = 60)
 print "STV w oknach czasowych wg. Arduini"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
 
-STV_wnd, STV = get_STV_Haan(fHR, t_fHR, n_intervals=640)
+STV_wnd, STV = get_STV_Haan(fHR, t_fHR, n_intervals=120)
 print "STV w oknach czasowych wg. de Haan'a"
 print STV_wnd
 print "STV w całosci zapisu"
@@ -833,7 +832,7 @@ print "STV w oknach czasowych wg. Huey'a"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
-STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd=600)
+STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd=60)
 print "STV w oknach czasowych wg. Dalton'a"
 print STV_wnd
 print "STV w całosci zapisu"
@@ -845,10 +844,10 @@ print "STV w całosci zapisu"
 print STV
 print "ZMIENNOSCI DLUGOTERMINOWE LTV"
 
-LTV = get_Oscillation_Index(fHR, t_fHR, t_wnd=60)
+LTV = get_Oscillation_Index(fHR, t_fHR, t_wnd=600)
 print "Oscillation Index"
 print LTV
-LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals=640)
+LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals=128)
 print "LTV w oknach czasowych wg. Haana"
 print LTV_wnd
 print "LTV w całosci zapisu"
@@ -858,18 +857,21 @@ print "LTV w oknach czasowych wg. Yeh'a"
 print LTV_wnd
 print "LTV w całosci zapisu"
 print LTV
-get_LTV_Huey(fHR, t_fHR, t_wnd=60)
+
+LTV_wnd, LTV = get_LTV_Huey(fHR, t_fHR, t_wnd = 60)
 print "LTV w oknach czasowych wg. Hueya"
 print LTV_wnd
 print "LTV w całosci zapisu"
 print LTV
 
-print "Entropia"
-ApEn = get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60)
-print ApEn
-print "Akceleracje"
-fHR_acc = fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=20, max_duration=120, max_t_incr=30)
+#print "Entropia"
+#ApEn = get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60)
+#print ApEn
+print "Akceleracje" 
+
+fHR_acc = fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t_incr=30)
 plt.plot(t_fHR, fHR_acc)
+
 
 acc_lenght, acc_area, acc_amp, n_acc = get_acc_param(fHR, fHR_acc, t_fHR)
 print "Parametry: długosc kolejnych akceleracji"
@@ -882,9 +884,9 @@ print "Ilosc akceleracji"
 print n_acc
 #######################################################
 #plt.plot(t_fHR, x, 'ro')
-#plt.plot( t_fHR, fHR, 'b', t_fHR, fHR_acc,'r')
-wnd=fHR_windows(fHR, t_fHR, 600)
-plt.plot(t_fHR, fHR, 'b', t_fHR, wnd, 'ro')
+plt.plot( t_fHR, fHR, 'b', t_fHR, fHR_acc,'r')
+#wnd=fHR_windows(fHR, t_fHR, 600)
+#plt.plot(t_fHR, fHR, 'b', t_fHR, wnd, 'ro')
 plt.savefig("fHR.png", dpi=1000)
 
 
