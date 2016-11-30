@@ -131,7 +131,7 @@ def get_STV_Arduini(fHR, t_fHR, t_wnd = 60):
     
     for i in range(len(STV_wnd)):
         RR_wnd=RR_intervals[i*n_samp : (i+1)*n_samp]
-        STV_wnd[i] = np.mean(np.abs(np.diff(RR_wnd)))
+        STV_wnd[i] = np.nanmean(np.abs(np.diff(RR_wnd)))
     
     STV = np.nanmean(np.abs(np.diff(RR_intervals)))
     
@@ -173,14 +173,14 @@ def get_STV_Haan(fHR, t_fHR, n_intervals=128):
             RR_points[j,1] = RR_intervals[i*n_samp+j+1]
             RR_phi_wnd[j] = np.arctan(RR_points[j,1]/RR_points[j,0])
             
-        STV_wnd[i] = np.subtract(*np.nanpercentile(RR_phi_wnd, [75, 25]))
+        STV_wnd[i] = np.subtract(*np.nanpercentile(RR_phi_wnd, [75, 25]))*1000
         
     RR_phi = np.zeros(len(RR_intervals)-1) 
     RR_points = np.zeros((len(RR_intervals)-1,2))
     for i in range(len(RR_intervals) - 1):
          RR_points[i,0] = RR_intervals[i]
          RR_points[i,1] = RR_intervals[i+1]
-         RR_phi[i] = np.arctan(RR_points[i,1]/RR_points[i,0])
+         RR_phi[i] = np.arctan(RR_points[i,1]/RR_points[i,0])*1000
          
     STV = np.subtract(*np.nanpercentile(RR_phi,[75, 25]))
     
@@ -203,7 +203,7 @@ def get_STV_Yeh(fHR, t_fHR, t_wnd=60):
     -------
     STV_wnd: array
         Short-term variabilite indexes in consecutive time windows.
-    STV_wnd: float
+    STV: float
         Short-term variabilite indexes fHR record.
      """   
     Ts = np.mean(np.diff(t_fHR))
@@ -247,7 +247,7 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
     -------
     STV_wnd: array
         Short-term variabilite indexes in consecutive time windows.
-    STV_wnd: float
+    STV: float
         Short-term variabilite indexes fHR record.
      """   
     Ts = np.mean(np.diff(t_fHR))
@@ -271,6 +271,7 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
         RR_diff_2 = RR_diff[i + 1]
         if RR_diff_1*RR_diff_2 < 0:
             STV = STV + np.abs(RR_diff_2)
+            
     STV = STV/int(len(STV_wnd))
         
     return STV_wnd, STV
@@ -292,7 +293,7 @@ def get_STV_Dalton(fHR, t_fHR, t_wnd=60):
     -------
     STV_wnd: array
         Short-term variabilite indexes in consecutive time windows.
-    STV_wnd: float
+    STV: float
         Short-term variabilite indexes fHR record.
      """   
     Ts = np.mean(np.diff(t_fHR))
@@ -327,7 +328,7 @@ def get_STV_van_Geijn(fHR, t_fHR, t_wnd=30):
     -------
     STV_wnd: array
         Short-term variabilite indexes in consecutive time windows.
-    STV_wnd: float
+    STV: float
         Short-term variabilite indexes fHR record.
      """   
     Ts = np.mean(np.diff(t_fHR))
@@ -463,9 +464,9 @@ def get_LTV_Yeh(fHR, t_fHR, t_wnd=60):
     
     for i in range(len(LTV_wnd)):
         RR_wnd=RR_intervals[n_samp*i : (i+1)*n_samp]
-        LTV_wnd[i] = np.nanstd(RR_wnd) / np.nanmean(RR_wnd)
+        LTV_wnd[i] = np.nanstd(RR_wnd) / np.nanmean(RR_wnd)*1000
     
-    LTV = np.nanstd(RR_intervals) / np.nanmean(RR_intervals) 
+    LTV = np.nanstd(RR_intervals) / np.nanmean(RR_intervals)*1000
     
     return LTV_wnd, LTV 
     
@@ -486,7 +487,7 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
     -------
     LTV_wnd: array
         Short-term variabilite indexes in consecutive time windows.
-    LTV_wnd: float
+    LTV: float
         Short-term variabilite indexes fHR record.
      """   
     Ts = np.mean(np.diff(t_fHR))
@@ -535,10 +536,8 @@ def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60):
     
     Outputs:
     -------
-    LTV: array
-        Long-term variabilite indexes in consecutive time windows.
-     LTV:
-        Long-term variability index in fHR record.
+    ApEn: float
+        Approximate Entropy for fHR record.
     """
     RR_intervals = 60000/fHR  
     r = r_mlp*np.nanstd(RR_intervals)
@@ -667,11 +666,7 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
     acc_amp: float
         Amplitude (above basal fHR) of every detected accelerations.
     n_acc: int
-        Number of detected accelerations.
-
-    
-    
-    
+        Number of detected accelerations.   
 """
     fHR = copy.deepcopy(fHR)
     fHR_acc = copy.deepcopy(fHR_acc)
@@ -773,11 +768,13 @@ def sin_rhythm(LTV_function, STV_function, fHR, t_fHR, wnd, min_ratio, SD=False)
 def fHR_windows(fHR, t_fHR, wnd, time = True):
     Ts = np.mean(np.diff(t_fHR))
     bnd_wnd_fHR = np.zeros(len(fHR))
+    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR)
+    
     if time:
         n_samp = int(wnd/Ts)
         n_wnd = int(len(fHR)/n_samp)
         for i in range(n_wnd):
-            bnd_wnd_fHR[n_samp*i] = fHR[n_samp*i]
+            bnd_wnd_fHR[n_samp*i] = basal_fHR
         bnd_wnd_fHR = np.where(bnd_wnd_fHR == 0, np.nan, bnd_wnd_fHR)
         
     if not time:
@@ -796,7 +793,7 @@ file_name = "1511050945.npz"
 file_name2 = "1502021138.npz"
 file_name3 = "1606291005.npz"
 
-t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name2)
+t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name3)
 
 fHR_ref = [val[0] for val in fHR_ref]
 t_ref = [val[0] for val in t_ref]
@@ -809,24 +806,24 @@ x = fHR_windows(fHR, t_fHR, 60, True)
 
 ########################################################
 
-Basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 40, max_amp = 10, max_val = 47.5, min_val = 222.5 )
+Basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 30, max_amp = 10, max_val = 47.5, min_val = 222.5 )
 print "Czestosc podstawowa fHR"
 print Basal_fHR
 print "Procent stabilnego fHR" 
 print prc_stable_fHR
 
-STV_wnd, STV = get_STV_Arduini(fHR, t_fHR, t_wnd = 60)
+STV_wnd, STV = get_STV_Arduini(fHR, t_fHR, t_wnd = 600)
 print "STV w oknach czasowych wg. Arduini"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
 
-STV_wnd, STV = get_STV_Haan(fHR, t_fHR, n_intervals=128)
+STV_wnd, STV = get_STV_Haan(fHR, t_fHR, n_intervals=640)
 print "STV w oknach czasowych wg. de Haan'a"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
-STV_wnd, STV = get_STV_Yeh(fHR, t_fHR, t_wnd=60)
+STV_wnd, STV = get_STV_Yeh(fHR, t_fHR, t_wnd=600)
 print "STV w oknach czasowych wg. Yeh'a"
 print STV_wnd
 print "STV w całosci zapisu"
@@ -836,7 +833,7 @@ print "STV w oknach czasowych wg. Huey'a"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
-STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd=60)
+STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd=600)
 print "STV w oknach czasowych wg. Dalton'a"
 print STV_wnd
 print "STV w całosci zapisu"
@@ -851,12 +848,12 @@ print "ZMIENNOSCI DLUGOTERMINOWE LTV"
 LTV = get_Oscillation_Index(fHR, t_fHR, t_wnd=60)
 print "Oscillation Index"
 print LTV
-LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals=128)
+LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals=640)
 print "LTV w oknach czasowych wg. Haana"
 print LTV_wnd
 print "LTV w całosci zapisu"
 print LTV
-LTV_wnd, LTV = get_LTV_Yeh(fHR, t_fHR, t_wnd=600)
+LTV_wnd, LTV = get_LTV_Yeh(fHR, t_fHR, t_wnd=60)
 print "LTV w oknach czasowych wg. Yeh'a"
 print LTV_wnd
 print "LTV w całosci zapisu"
@@ -868,12 +865,12 @@ print "LTV w całosci zapisu"
 print LTV
 
 print "Entropia"
-#ApEn = get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60)
-#print ApEn
+ApEn = get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60)
+print ApEn
 print "Akceleracje"
-fHR_acc = fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t_incr=30)
+fHR_acc = fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=20, max_duration=120, max_t_incr=30)
 plt.plot(t_fHR, fHR_acc)
-print "x"
+
 acc_lenght, acc_area, acc_amp, n_acc = get_acc_param(fHR, fHR_acc, t_fHR)
 print "Parametry: długosc kolejnych akceleracji"
 print acc_lenght
@@ -885,8 +882,9 @@ print "Ilosc akceleracji"
 print n_acc
 #######################################################
 #plt.plot(t_fHR, x, 'ro')
-plt.plot( t_fHR, fHR, 'b', t_fHR, fHR_acc,'r')
-
+#plt.plot( t_fHR, fHR, 'b', t_fHR, fHR_acc,'r')
+wnd=fHR_windows(fHR, t_fHR, 600)
+plt.plot(t_fHR, fHR, 'b', t_fHR, wnd, 'ro')
 plt.savefig("fHR.png", dpi=1000)
 
 
