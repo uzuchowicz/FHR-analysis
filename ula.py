@@ -71,18 +71,21 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     """
     fHR = copy.deepcopy(fHR)
     
+    #parameters
     Ts = np.mean(np.diff(t_fHR)) 
     fHR_stable = fHR
     n_samp = int(t_wnd / Ts)
     N=len(fHR)
-     
+    
+    #detect stable parts of fHR 
     for i in range(N - n_samp):
         fHR_wnd = fHR[i : i + n_samp]
         if (~np.isnan(fHR_wnd)).all():
             amp_wnd = np.nanmax(fHR_wnd) - np.nanmin(fHR_wnd)
             if amp_wnd > max_amp:
                 fHR_stable[i : i + n_samp] = np.nan  
-             
+     
+    #calculate precent of stable record        
     fHR_stable_sgmts = np.delete(fHR_stable, np.nonzero(np.isnan(fHR_stable)))
     prc_stable_fHR = float(len(fHR_stable_sgmts))/float(len(fHR))*100  
 
@@ -92,7 +95,8 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     basal_fHR = int(basal_fHR)
     #plt.hist(fHR_stable_sgmts, bins)
     #plt.show()
-   
+    
+    #detect arrhythmia
     Bradycardia = False
     Tachycardia = False
     if basal_fHR>150:
@@ -124,15 +128,17 @@ def get_STV_Arduini(fHR, t_fHR, t_wnd = 60):
         Short-term variability value for fHR record.
     
     """
+    #parameters
     Ts = np.mean(np.diff(t_fHR)) 
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     STV_wnd = np.zeros(int(len(fHR)/n_samp))
     
+    #STV in time windows
     for i in range(len(STV_wnd)):
         RR_wnd=RR_intervals[i*n_samp : (i+1)*n_samp]
         STV_wnd[i] = np.nanmean(np.abs(np.diff(RR_wnd)))
-    
+    #STV in whole record
     STV = np.nanmean(np.abs(np.diff(RR_intervals)))
     
     return STV_wnd, STV
@@ -158,6 +164,7 @@ def get_STV_Haan(fHR, t_fHR, n_intervals=128):
     STV: float
         Short-term variability index for fHR record.
      """   
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(n_intervals * np.nanmean(RR_intervals) / (Ts*1000))
@@ -165,15 +172,19 @@ def get_STV_Haan(fHR, t_fHR, n_intervals=128):
     STV_wnd = np.zeros(n_wnd)
     RR_points = np.zeros((n_samp-1,2))
     
-    RR_phi_wnd = np.zeros(n_samp-1) 
+    RR_phi_wnd = np.zeros(n_samp-1)
+    
+    #calculate phi for all pairs of RR intervals
     for i in range(n_wnd):
         for j in range(n_samp-1):
             RR_points[j,0] = RR_intervals[i*n_samp+j]
             RR_points[j,1] = RR_intervals[i*n_samp+j+1]
             RR_phi_wnd[j] = np.arctan(RR_points[j,1]/RR_points[j,0])
             
+    #interquartile range in time window         
         STV_wnd[i] = np.subtract(*np.nanpercentile(RR_phi_wnd, [75, 25]))*1000
-        
+    
+    #STV in whole record    
     RR_phi = np.zeros(len(RR_intervals)-1) 
     RR_points = np.zeros((len(RR_intervals)-1,2))
     for i in range(len(RR_intervals) - 1):
@@ -205,6 +216,7 @@ def get_STV_Yeh(fHR, t_fHR, t_wnd=60):
     STV: float
         Short-term variabilite indexes fHR record.
      """   
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
@@ -213,13 +225,16 @@ def get_STV_Yeh(fHR, t_fHR, t_wnd=60):
     
     D_ind = np.zeros(n_samp-1)
     
+    #calculate standard deviation of D indexes for all pairs of RR intervals
     for i in range(len(STV_wnd)):
         for j in range(n_samp-1):
             RR_1 = RR_intervals[n_samp*i+j]
             RR_2 = RR_intervals[n_samp*i+j+1]
             D_ind[j] = (RR_2 - RR_1)/(RR_1 + RR_2)*1000
+        
         STV_wnd[i] = np.nanstd(D_ind)
         
+    #STV in whole record    
     D_ind = np.zeros(N-1)
     for i in range(N-1):
         RR_1 = RR_intervals[i]
@@ -249,6 +264,7 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
     STV: float
         Short-term variabilite indexes fHR record.
      """   
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
@@ -256,7 +272,8 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
     STV_wnd = np.zeros(int(N/n_samp)) 
     
     RR_diff = np.diff(RR_intervals)
-       
+    
+    #STV in time windows
     for i in range(len(STV_wnd)):
         for j in range(n_samp-2):
             RR_diff_1 = RR_diff[n_samp*i + j]
@@ -264,6 +281,7 @@ def get_STV_Huey(fHR, t_fHR, t_wnd=30):
             if RR_diff_1*RR_diff_2 < 0:
                 STV_wnd[i] = STV_wnd[i] + np.abs(RR_diff_2)
         
+    #STV for whole record
     STV = 0
     for i in range(N-2):
         RR_diff_1 = RR_diff[i]
@@ -294,18 +312,21 @@ def get_STV_Dalton(fHR, t_fHR, t_wnd=60):
         Short-term variabilite indexes in consecutive time windows.
     STV: float
         Short-term variabilite indexes fHR record.
-     """   
+     """ 
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     N=len(fHR)
     STV_wnd = np.zeros(int(N/n_samp))   
     RR_abs_diff = np.abs(np.diff(RR_intervals))
-      
+     
+    #STV for time windows
     for i in range(len(STV_wnd)):
             RR_abs_diff_wnd = RR_abs_diff[i*n_samp : (i+1)*n_samp]
             STV_wnd[i] = 0.5 * np.abs(np.nanmean(RR_abs_diff_wnd))
-        
+            
+    #STV for whole record    
     STV =  0.5 * np.abs(np.nanmean(RR_abs_diff))
      
     return STV_wnd, STV       
@@ -329,22 +350,26 @@ def get_STV_van_Geijn(fHR, t_fHR, t_wnd=30):
         Short-term variabilite indexes in consecutive time windows.
     STV: float
         Short-term variabilite indexes fHR record.
-     """   
+     """  
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     N=len(fHR)
     STV_wnd = np.zeros(int(N/n_samp)) 
-       
+    
+    #calculate weighted differences for all pairs of RR intervals
     for i in range(len(STV_wnd)):
         RR_param = np.zeros(n_samp)
         for j in range(n_samp - 1):
             RRs = RR_intervals[n_samp*i + j : n_samp*i + j+2]            
             RR_mean = np.mean(RRs)
             g = np.power(180/(RR_mean - 320), 1.5)
-            RR_param[j] = g * (np.abs(np.diff(RRs)))
+            RR_param[j] = g * (np.abs(np.diff(RRs)))           
+        #STV in time windows
         STV_wnd[i] = np.subtract(*np.nanpercentile(RR_param,[75, 25]))
         
+    #STV in whole record   
     RR_param = np.zeros(N)
     for i in range(N - 1):    
             RRs = RR_intervals[i : i+2]            
@@ -375,11 +400,13 @@ def get_Oscillation_Index(fHR, t_fHR, t_wnd=600 ):
         Long-term variability values as Oscillation Index in every time windows.
     
     """
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     LTV = np.zeros(int(len(fHR)/n_samp))
     
+    #LTV in time windows
     for i in range(len(LTV)):
         RR_wnd = RR_intervals[i*n_samp : (i+1)*n_samp]
         LTV[i] = np.abs(np.nanmax(RR_wnd) - np.nanmin(RR_wnd))
@@ -406,7 +433,8 @@ def get_LTV_Haan(fHR, t_fHR, n_intervals=128):
         Long-term variability indexes in time of consecutive n_intervals.
     LTV:
         Long-term variability index in fHR record.
-     """   
+     """  
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     
@@ -416,14 +444,16 @@ def get_LTV_Haan(fHR, t_fHR, n_intervals=128):
     RR_points = np.zeros((n_samp-1, 2))
     RR_modulus = np.zeros(n_samp-1)
     
+    #calculate modules for all pairs of RR intervals
     for i in range(len(LTV_wnd)):
         for j in range(n_samp-1):
             RR_points[j,0] = RR_intervals[i*n_samp+j]
             RR_points[j,1] = RR_intervals[i*n_samp+j+1]
             RR_modulus[j] = np.sqrt(np.power(RR_points[j,1], 2) + np.power(RR_points[j,0], 2))
-            
+        #LTV in time windows    
         LTV_wnd[i] = np.subtract(*np.nanpercentile(RR_modulus, [75, 25]))
-   
+    
+    #LTV in whole record
     RR_modulus = np.zeros(len(RR_intervals)-1) 
     RR_points = np.zeros((len(RR_intervals)-1, 2))
     
@@ -455,16 +485,19 @@ def get_LTV_Yeh(fHR, t_fHR, t_wnd=60):
         Long-term variabilite indexes in consecutive time windows.
      LTV:
         Long-term variability index in fHR record.  
-     """   
+     """
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     LTV_wnd = np.zeros(int(len(fHR)/n_samp))
     
+    #LTV in time windows
     for i in range(len(LTV_wnd)):
         RR_wnd=RR_intervals[n_samp*i : (i+1)*n_samp]
         LTV_wnd[i] = np.nanstd(RR_wnd) / np.nanmean(RR_wnd)*1000
     
+    #lTV in whole record
     LTV = np.nanstd(RR_intervals) / np.nanmean(RR_intervals)*1000
     
     return LTV_wnd, LTV 
@@ -488,16 +521,16 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
         Short-term variabilite indexes in consecutive time windows.
     LTV: float
         Short-term variabilite indexes fHR record.
-     """   
+     """  
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
-    print Ts
     RR_intervals = 60000/fHR
     n_samp = int(t_wnd/Ts)
     N=len(fHR)
     LTV_wnd = np.zeros(int(N/n_samp))   
-    print len(LTV_wnd)
     RR_diff = np.diff(RR_intervals)
-       
+    
+    #LTV in time windows
     for i in range(len(LTV_wnd)):
         for j in range(n_samp-3):
             RR_diff_1 = RR_diff[n_samp*i + j]
@@ -505,7 +538,8 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
             RR_diff_3 = RR_diff[n_samp*i + j+2]
             if RR_diff_1*RR_diff_2*RR_diff_3 > 0:
                 LTV_wnd[i] = LTV_wnd[i] + np.abs(RR_diff_2)
-        
+    
+    #LTV in whole record
     LTV = 0
     for i in range(N-3):
         RR_diff_1 = RR_diff[i]
@@ -520,7 +554,7 @@ def get_LTV_Huey(fHR, t_fHR, t_wnd=60):
           
 ####################ENTROPY##################################
   
-def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60): 
+def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.2): 
     """
     Estimate Approximate Entropy in fHR record.
     ----------
@@ -539,19 +573,21 @@ def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60):
     -------
     ApEn: float
         Approximate Entropy for fHR record.
-    """
+    """   
+    #parameters
     RR_intervals = 60000/fHR  
     r = r_mlp*np.nanstd(RR_intervals)
     N = len(RR_intervals)  
     Phi_m_r = np.zeros(2)
+    
     for n in range(2):
         m = m+n
         Pm = np.zeros((N-m+1, m))
-       
+        #Pm vectors
         for j in range(N - m+1):
             for i in range(m):
                 Pm[j, i] = RR_intervals[j+i]
-        
+        #calculate distances vector
         pm_distances = np.zeros((N-m+1,N-m+1))
         for i in range(N-m+1):
             for j in range(N-m+1):  
@@ -560,21 +596,54 @@ def get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60):
                     dist[k] = np.abs(Pm[j,k]-Pm[i,k])
                     pm_distances[i,j] = np.nanmax(dist) 
                     pm_distances[j,i] = np.nanmax(dist)                 
-        
+        #comparision with tolerance
         pm_similarity = pm_distances>r 
-        
+        #function Cmr
         C_m_r = np.zeros(N-m+1)
         for i in range(N-m+1):
             n_i = np.nansum(pm_similarity[i])
             C_m_r[i] = float(n_i) / float(N)
-        
+        #phi parameter- Cmr logarithms mean
         Phi_m_r[n] = np.nanmean(np.log(C_m_r))
     ApEn = np.abs(Phi_m_r[0] - Phi_m_r[1])
     
-        
     return ApEn
     
-
+def get_ApEn_wnd(fHR, T_fHR, t_wnd = 60, m=2, r_mlp=0.2): 
+    """
+    Estimate Approximate Entropy in fHR record.
+    ----------
+    Parameters:
+    ----------
+    fHR: array
+        Fetal heart rate window values calculated with ZuzaDSP.
+    t_fHR: array
+        Timestamps for fHR window calculated with ZuzaDSP, fs=0.4 Hz
+    t_wnd:
+        Duration of time window in second.
+    m: int
+        Lenght of compared RR intervals sequences.
+    r_mlp: float
+        Multiple standard deviation. Tolerance for accepting matches is standard deviation multiplied by r_mpl.
+    
+    Outputs:
+    -------
+    ApEn_wnd: float
+        Approximate Entropy in time windows.
+    """
+    Ts = np.mean(np.diff(t_fHR))
+   
+    RR_intervals = 60000/fHR
+    n_samp = int(t_wnd/Ts)
+    N=len(fHR)
+    ApEn_wnd = np.zeros(int(N/n_samp)) 
+    
+    for i in range(len(ApEn_wnd)):
+        RR_wnd = RR_intervals[n_samp*i : (i+1)*n_samp]
+        t_wnd = t_fHR[n_samp*i : (i+1)*n_samp]
+        ApEn_wnd[i] = get_ApEn(RR_wnd, t_wnd, m, r_mlp)
+        
+    return ApEn_wnd
 ####################ACCELERATIONS############################
 
 def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t_incr=30):
@@ -600,12 +669,12 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     """
     fHR_acc = copy.deepcopy(fHR)
     
+    #parameters
     Ts = np.mean(np.diff(t_fHR))
     N = len(fHR)
     is_acc = np.zeros(N) 
-    
-    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia = get_Basal_fHR(fHR, t_fHR)
-   
+
+    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia = get_Basal_fHR(fHR, t_fHR) 
     
     fHR_diff = np.diff(fHR)
     n_acc = 0
@@ -614,19 +683,18 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     end_acc = 0
     criteria = np.zeros(3)
     
-    for i in range(int(N - n_max_samp)):
+    for i in range(int(N - n_min_samp)):
         if i > end_acc and fHR[i]>basal_fHR and fHR_diff[i]>0:
             
-            for j in range(N - n_max_samp - i):
+            for j in range(N - n_min_samp - i):
                 if fHR[i+j] <= basal_fHR:
+                    #parameters for calculating criterias
                     criteria=np.zeros(3)
                     fHR_wnd = fHR[i: i+j]               
                     amp = np.nanargmax(fHR_wnd)
                     
-                    if j > n_min_samp and j < n_max_samp:
-                        print n_min_samp
-                        
-                        criteria[0]=1
+                    if j > n_min_samp and j < n_max_samp:                       
+                       criteria[0]=1
 
                     if fHR_wnd[amp] > (min_amp + basal_fHR):
                         criteria[1]=1
@@ -637,10 +705,10 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
                     if criteria.all():
                         is_acc[i:i+j] = 1
                         n_acc += 1
-                        print j
                     end_acc=i+j                  
                     break
-                       
+    
+    #Replace no-acceleration parts of fHR with NaN                 
     fHR_acc = np.where(is_acc == 0, np.nan, fHR_acc)
             
     return fHR_acc
@@ -669,6 +737,7 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
     n_acc: int
         Number of detected accelerations.   
 """
+    #parameters
     fHR = copy.deepcopy(fHR)
     fHR_acc = copy.deepcopy(fHR_acc)
     
@@ -683,10 +752,12 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
     
     end_acc = 0
     for i in range(N): 
+        #detect acceleration parts of fHR
         if i > end_acc and ~np.isnan(fHR_acc[i]):
             for j in range(N-i):
                 if np.isnan(fHR_acc[i+j+1]):
-                            
+                    
+                            #calculate parameters of acceleration
                             acc_lenght.append(Ts*(j+1))                           
                             acc = fHR_acc[i : i+j+1] 
                             area = np.trapz(acc, dx=Ts) - basal_fHR*Ts*(j) 
@@ -734,34 +805,34 @@ def sin_rhythm(LTV_function, STV_function, fHR, t_fHR, wnd, min_ratio, SD=False)
     
     """
     fHR_sin=copy.deepcopy(fHR)
-    
+    #calculate STV and LTV
     LTV, aLTV = LTV_function(fHR,t_fHR,wnd)
     STV, aSTV = STV_function(fHR,t_fHR, wnd)
     
+    #parameters
     is_sin_fHR = np.zeros(len(t_fHR))
     Ts = np.nanmean(np.diff(t_fHR))
     
     n_samp=int(wnd/Ts)
     ratios=np.zeros(len(STV))
     
+    #calculate standard deviation treshold 
     if SD==True:
-        ratios = [ltv / stv for ltv, stv in zip(LTV, STV)]
-        
+        ratios = [ltv / stv for ltv, stv in zip(LTV, STV)]        
         min_ratio = np.nanmean(ratios) + np.nanstd(ratios)
-        
-   
+    
+    #detect sinusoidal rhythm
     for i in range(len(STV)):
       ratio = LTV[i]/STV[i]
-    
-      
+         
       if ratio > min_ratio: 
-          is_sin_fHR[i*n_samp:(i+1)*n_samp]=True
+          is_sin_fHR[i*n_samp:(i+1)*n_samp] = True
       else:
-          is_sin_fHR[i*n_samp:(i+1)*n_samp]=False
+          is_sin_fHR[i*n_samp:(i+1)*n_samp] = False
                        
     for i in range(len(fHR)):
         if not is_sin_fHR[i]: 
-            fHR_sin[i]=np.nan
+            fHR_sin[i] = np.nan
        
     return fHR_sin
         
@@ -798,12 +869,9 @@ t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name2)
 
 fHR_ref = [val[0] for val in fHR_ref]
 t_ref = [val[0] for val in t_ref]
-t_ref = np.asarray(t_ref)
-fHR_ref = np.asarray(fHR_ref)
+t_fHR = np.asarray(t_ref)
+fHR = np.asarray(fHR_ref)
 plt.plot(t_fHR,fHR)
-
-
-
 
 ########################################################
 Basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 30, max_amp = 15, max_val = 47.5, min_val = 222.5 )
@@ -818,7 +886,7 @@ print STV_wnd
 print "STV w całosci zapisu"
 print STV 
 
-standardized_1 = np.transpose(preprocessing.scale(STV_wnd))
+#standardized_1 = np.transpose(preprocessing.scale(STV_wnd))
 
 STV_wnd, STV = get_STV_Haan(fHR, t_fHR, n_intervals=128)
 print "STV w oknach czasowych wg. de Haan'a"
@@ -834,21 +902,21 @@ print STV_wnd
 print "STV w całosci zapisu"
 print STV
 #standardized_3 =np.transpose(preprocessing.scale(STV_wnd))
-STV_wnd, STV = get_STV_Huey(fHR, t_fHR, t_wnd=30)
+STV_wnd, STV = get_STV_Huey(fHR, t_fHR, t_wnd = 30)
 print "STV w oknach czasowych wg. Huey'a"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
 #standardized_4 = np.transpose(preprocessing.scale(STV_wnd))
 
-STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd=60)
+STV_wnd, STV = get_STV_Dalton(fHR, t_fHR, t_wnd = 60)
 print "STV w oknach czasowych wg. Dalton'a"
 print STV_wnd
 print "STV w całosci zapisu"
 print STV
 
 #standardized_5 = np.transpose(preprocessing.scale(STV_wnd))
-STV_wnd, STV = get_STV_van_Geijn(fHR, t_fHR, t_wnd=30)
+STV_wnd, STV = get_STV_van_Geijn(fHR, t_fHR, t_wnd = 30)
 print "STV w oknach czasowych wg. van Geijn'a"
 print STV_wnd
 print "STV w całosci zapisu"
@@ -857,16 +925,16 @@ print STV
 
 print "ZMIENNOSCI DLUGOTERMINOWE LTV"
 
-LTV = get_Oscillation_Index(fHR, t_fHR, t_wnd=600)
+LTV = get_Oscillation_Index(fHR, t_fHR, t_wnd = 600)
 print "Oscillation Index"
 print LTV
 
-LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals=128)
+LTV_wnd, LTV = get_LTV_Haan(fHR, t_fHR, n_intervals = 128)
 print "LTV w oknach czasowych wg. Haana"
 print LTV_wnd
 print "LTV w całosci zapisu"
 
-LTV_wnd, LTV = get_LTV_Yeh(fHR, t_fHR, t_wnd=60)
+LTV_wnd, LTV = get_LTV_Yeh(fHR, t_fHR, t_wnd = 60)
 print "LTV w oknach czasowych wg. Yeh'a"
 print LTV_wnd
 print "LTV w całosci zapisu"
@@ -878,8 +946,10 @@ print "LTV w całosci zapisu"
 print LTV
 
 print "Entropia"
-ApEn = get_ApEn(fHR,t_fHR, m=2, r_mlp=0.5, wnd = False, t_wnd = 60)
+ApEn = get_ApEn(fHR,t_fHR, m = 2, r_mlp = 0.5)
 print ApEn
+print "Entropia w oknach 60 sekundowych"
+ApEn_wnd = get_ApEn_wnd(fHR, t_fHR, t_wnd = 60, m = 2, r_mlp = 0.5)
 print "Akceleracje" 
 
 fHR_acc = fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t_incr=30)
@@ -895,11 +965,7 @@ print acc_amp
 print "Ilosc akceleracji"
 print n_acc
 #######################################################
-#plt.plot(t_fHR, x, 'ro')
-#plt.plot( t_fHR, fHR, 'b', t_fHR, fHR_acc,'r')
-#wnd=fHR_windows(fHR, t_fHR, 600)
-#plt.plot(t_fHR, fHR, 'b', t_fHR, wnd, 'ro')
-plt.savefig("fHR.png", dpi=1000)
+
 
 
 
