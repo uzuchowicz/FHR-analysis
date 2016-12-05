@@ -36,7 +36,7 @@ def load_fHR(file_name):
  
     ###################BASAL HEART RATE #########################################
     
-def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val = 47.5, min_val = 222.5):
+def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, t_basal = 600, max_amp = 10, max_val = 47.5, min_val = 222.5):
     """
     Estimate basal fetal heart rate value in stable segments fHR for evaluates potential arrythmias.
     --------
@@ -50,6 +50,8 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
         Baseline is rounded to app_val (bpm).
     t_wnd: float
         Time window for detection stable segments in seconds.
+    t_basal: float
+        Time window for calculation basal fHR.
     max_amp: float
         Maximum amplitude of stable segments in bpm.
     min_val: float
@@ -60,14 +62,16 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     ---------
     Basal_FHR: array
         Basal fetal heart rate value.
+    Baal_wnd: array
+        Basal fetal heart rate value for every timestamps calculated on encompassed time windows.
     fHR_stable: array 
         Stable FHR segments. Unstable parts replaced with NaNs. 
     prc_stable_fHR: float
         Percent of stable fHR in record.
     Bradycardia: bool
-        True if detected basal fHR below normal values.
+        True if detected basal fHR in any time below normal values.
     Tachycardia: bool
-        True if detected basal fHR more than normal values.
+        True if detected basal fHR in any time more than normal values.
     """
     fHR = copy.deepcopy(fHR)
     
@@ -75,8 +79,11 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     Ts = np.mean(np.diff(t_fHR)) 
     fHR_stable = fHR
     n_samp = int(t_wnd / Ts)
-    N=len(fHR)
     
+    N=len(fHR)
+    n_samp_basal = int(t_basal/Ts)
+    basal_wnd = np.zeros(N)
+             
     #detect stable parts of fHR 
     for i in range(N - n_samp):
         fHR_wnd = fHR[i : i + n_samp]
@@ -88,7 +95,8 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     #calculate precent of stable record        
     fHR_stable_sgmts = np.delete(fHR_stable, np.nonzero(np.isnan(fHR_stable)))
     prc_stable_fHR = float(len(fHR_stable_sgmts))/float(len(fHR))*100  
-
+    
+    #calculate basal fHR for recod
     bins = np.arange(max_val, min_val, app_val) 
     hist_fHR = np.histogram(fHR_stable_sgmts, bins)
     basal_fHR = bins[np.nanargmax(hist_fHR[0])] + (app_val*0.5) 
@@ -96,15 +104,25 @@ def get_Basal_fHR(fHR, t_fHR, app_val = 5.0, t_wnd = 30, max_amp = 10, max_val =
     #plt.hist(fHR_stable_sgmts, bins)
     #plt.show()
     
+    #calculate basal fHR in time windows
+    for i in range(N):
+        fHR_st_wnd = fHR_stable[i - int(n_samp_basal/2) : i + int(n_samp_basal/2)]
+        non_nan_stable = np.delete(fHR_st_wnd, np.nonzero(np.isnan(fHR_st_wnd)))
+        hist_fHR = np.histogram(non_nan_stable, bins)
+        basal_wnd[i] = int(bins[np.nanargmax(hist_fHR[0])] + (app_val*0.5))
+    basal_wnd[0:int(n_samp_basal/2)] = basal_wnd[int(n_samp_basal/2)]
+        
+    
+    
     #detect arrhythmia
     Bradycardia = False
     Tachycardia = False
-    if basal_fHR>150:
+    if basal_wnd.all()>150:
         Tachycardia = True
-    if basal_fHR<110:
+    if basal_wnd.all()<110:
         Bradycardia = True
        
-    return basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia
+    return basal_fHR, basal_wnd, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia
     
 #################SHORT-TIME VARIABILITY ###########################    
 
@@ -674,7 +692,7 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     N = len(fHR)
     is_acc = np.zeros(N) 
 
-    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia = get_Basal_fHR(fHR, t_fHR) 
+    basal_fHR, basal_wnd, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia = get_Basal_fHR(fHR, t_fHR) 
     
     fHR_diff = np.diff(fHR)
     n_acc = 0
@@ -684,10 +702,10 @@ def fHR_acc_det(fHR, t_fHR, min_amp=10, min_duration=30, max_duration=120, max_t
     criteria = np.zeros(3)
     
     for i in range(int(N - n_min_samp)):
-        if i > end_acc and fHR[i]>basal_fHR and fHR_diff[i]>0:
+        if i > end_acc and fHR[i]>basal_wnd[i] and fHR_diff[i]>0:
             
             for j in range(N - n_min_samp - i):
-                if fHR[i+j] <= basal_fHR:
+                if fHR[i+j] <= basal_wnd[i]:
                     #parameters for calculating criterias
                     criteria=np.zeros(3)
                     fHR_wnd = fHR[i: i+j]               
@@ -748,7 +766,7 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
     
     Ts=np.mean(np.diff(t_fHR))
     N=len(fHR_acc)
-    basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR)  
+    basal_fHR, basal_wnd, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR)  
     
     end_acc = 0
     for i in range(N): 
@@ -760,9 +778,9 @@ def get_acc_param(fHR, fHR_acc, t_fHR):
                             #calculate parameters of acceleration
                             acc_lenght.append(Ts*(j+1))                           
                             acc = fHR_acc[i : i+j+1] 
-                            area = np.trapz(acc, dx=Ts) - basal_fHR*Ts*(j) 
+                            area = np.trapz(acc, dx=Ts) - basal_wnd[i]*Ts*(j) 
                             acc_area.append(area) 
-                            amp = np.nanmax(acc) - basal_fHR 
+                            amp = np.nanmax(acc) - basal_wnd[i] 
                             acc_amp.append(amp)  
                             n_acc += 1                           
                             end_acc = i+j
@@ -865,20 +883,22 @@ file_name = "1511050945.npz"
 file_name2 = "1502021138.npz"
 file_name3 = "1606291005.npz"
 
-t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name2)
+t_fHR, fHR, fHR_bl, t_ref, fHR_ref = load_fHR(file_name3)
 
 fHR_ref = [val[0] for val in fHR_ref]
 t_ref = [val[0] for val in t_ref]
-t_fHR = np.asarray(t_ref)
-fHR = np.asarray(fHR_ref)
+t_ref = np.asarray(t_ref)
+fHR_ref = np.asarray(fHR_ref)
 plt.plot(t_fHR,fHR)
 
 ########################################################
-Basal_fHR, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 30, max_amp = 15, max_val = 47.5, min_val = 222.5 )
-print "Czestosc podstawowa fHR"
+Basal_fHR, basal_wnd, fHR_stable, prc_stable_fHR, Bradycardia, Tachycardia  = get_Basal_fHR(fHR, t_fHR,  app_val = 5.0, t_wnd = 30, max_amp = 15, max_val = 47.5, min_val = 222.5 )
+print "Zaokraglona czestosc podstawowa fHR"
 print Basal_fHR
 print "Procent stabilnego fHR" 
 print prc_stable_fHR
+print "Zaokraglona czestosc podstawowa fHR w czasie obliczona na podstawie 10 minutowego okna"
+basal_wnd
 
 STV_wnd, STV = get_STV_Arduini(fHR, t_fHR, t_wnd = 60)
 print "STV w oknach czasowych wg. Arduini"
